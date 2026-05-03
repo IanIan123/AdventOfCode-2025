@@ -31,15 +31,15 @@ games := OrderedCollection new.
 total := 0.
 
 games do: [:game |
- 	| targetMask buttons best n |
+ 	| targetMask buttons best numButtons |
 	targetMask := game at: 1.
 	buttons := game at: 2.
-	n := buttons size.
+	numButtons := buttons size.
 	best := SmallInteger maxVal.
-	0 to: (1 << n) - 1 do: [:subset |
+	0 to: (1 << numButtons) - 1 do: [:subset |
 		| state |
 		state := 0.
-		0 to: n - 1 do: [:i |
+		0 to: numButtons - 1 do: [:i |
 			| bitSet |
 			bitSet := (subset bitAnd: (1 << i)) ~= 0.
 			bitSet ifTrue: [state := state bitXor: (buttons at: i + 1)].
