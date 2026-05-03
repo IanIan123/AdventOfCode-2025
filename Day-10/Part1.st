@@ -36,15 +36,20 @@ games do: [:game |
 	buttons := game at: 2.
 	n := buttons size.
 	best := SmallInteger maxVal.
-	0 to: (1 << n) - 1 do: [:mask |
-		| state presses |
+	0 to: (1 << n) - 1 do: [:subset |
+		| state |
 		state := 0.
-		presses := 0.
 		0 to: n - 1 do: [:i |
- 			(mask bitAnd: (1 << i)) ~= 0 ifTrue: [
-				state := state bitXor: (buttons at: i + 1).
-				presses := presses + 1]].
-		state = targetMask ifTrue: [best := best min: presses]].
-	total := total + best].
+			| bitSet |
+			bitSet := (subset bitAnd: (1 << i)) ~= 0.
+			bitSet ifTrue: [state := state bitXor: (buttons at: i + 1)].
+		].
+		state = targetMask ifTrue: [
+			| buttonCount |
+			buttonCount := subset bitCount.
+			best := best min: buttonCount]
+		].
+	total := total + best
+].
 
 Transcript show: total.
