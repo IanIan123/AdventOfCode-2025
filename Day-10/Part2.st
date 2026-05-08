@@ -1,4 +1,4 @@
-| stream input lines games total findMatchingSubsets printMask renderTarget |
+| stream input lines games total findMatchingSubsets printMask renderTarget getTargetMask |
 Transcript clear.
 stream := FileStream readOnlyFileNamed: 'input.txt'.
 input := stream contentsOfEntireFile.
@@ -6,7 +6,7 @@ stream close.
 lines := input lines.
 games := OrderedCollection new.
 1 to: lines size do: [:i |
-	| items answer buttons answerMask width |
+	| items answer buttons answerMask width counters |
 	items := (lines at: i) findTokens: ' '.
 	answer := items at: 1.
 	answer := answer copyFrom: 2 to: answer size - 1.
@@ -21,7 +21,10 @@ games := OrderedCollection new.
 		mask := 0.
 		(each findTokens: ',') do: [:x | mask := mask bitOr: (1 << x asInteger)].
 		mask].
-	games add: (Array with: answerMask with: buttons asArray with: width).
+	counters := items at: items size.
+	counters := counters copyFrom: 2 to: counters size - 1.
+	counters := ((counters findTokens: ',') collect: [:x | x asInteger]) asArray .
+	games add: (Array with: answerMask with: buttons asArray with: width with: counters).
 ].
 findMatchingSubsets := [:targetMask :buttons |
 	| numButtons matchingMasks |
@@ -49,13 +52,27 @@ renderTarget := [:m :width |
 	1 to: width do: [:i | str := str , ((m bitAnd: (1 bitShift: i - 1)) ~= 0 ifTrue: ['#'] ifFalse: ['.'])].
 	str , ']'
 ].
+getTargetMask := [:counters |
+	| answerMask |
+	answerMask := 0.
+	counters doWithIndex: [:count :j |
+		count odd ifTrue: [answerMask := answerMask bitOr: (1 << (j - 1))]].
+	answerMask.
+].
+halveCounters := [:counters |
+	counters collect: [:count | count / 2].
+].
 total := 0.
 games do: [:game |
-	| targetMask buttons width result |
-	targetMask := game at: 1.
+	| targetMask buttons counters width result |
 	buttons := game at: 2.
 	width := game at: 3.
+	counters := game at: 4.
+	Transcript show: 'Counters: ' , counters  , (String with: Character lf).
+	counters := halveCounters value: counters.
+	targetMask := getTargetMask value: counters.
 	result := findMatchingSubsets value: targetMask value: buttons.
+	Transcript show: 'Counters: ' , counters  , (String with: Character lf).
 	Transcript show: 'Target: ' , (renderTarget value: targetMask value: width) , (String with: Character lf).
 	result do: [:mask |
 		| pressed str |
