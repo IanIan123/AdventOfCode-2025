@@ -1,4 +1,4 @@
-| stream input lines games total findMatchingSubsets printMask renderTarget getTargetMask |
+| stream input lines games total findMatchingSubsets printMask renderTarget getTargetMask printButtons iterate reduceCounters halveCounters allCountersNonNegative iterateCache |
 Transcript clear.
 stream := FileStream readOnlyFileNamed: 'input.txt'.
 input := stream contentsOfEntireFile.
@@ -53,33 +53,82 @@ renderTarget := [:m :width |
 	str , ']'
 ].
 getTargetMask := [:counters |
-	| answerMask |
-	answerMask := 0.
+	| targetMask |
+	targetMask := 0.
 	counters doWithIndex: [:count :j |
-		count odd ifTrue: [answerMask := answerMask bitOr: (1 << (j - 1))]].
-	answerMask.
+		count odd ifTrue: [targetMask := targetMask bitOr: (1 << (j - 1))]].
+	targetMask.
 ].
 halveCounters := [:counters |
 	counters collect: [:count | count / 2].
 ].
+allCountersNonNegative := [:counters |
+	counters allSatisfy: [:counter | counter >= 0]
+].
+printButtons := [:mask :buttons |
+    | pressed str |
+    pressed := (0 to: buttons size - 1)
+        select: [:i | (mask bitAnd: (1 bitShift: i)) ~= 0]
+        thenCollect: [:i | printMask value: (buttons at: i + 1)].
+    str := '* Pressing '.
+    pressed doWithIndex: [:p :i | str := str , p. i < pressed size ifTrue: [str := str , ', ']].
+    Transcript show: str , '.' , (String with: Character lf)
+].
+reduceCounters := [:counters :buttons :mask |
+	counters collectWithIndex: [:count :i |
+		| decrements |
+		decrements := 0.
+		0 to: buttons size - 1 do: [:j |
+			(mask bitAnd: (1 bitShift: j)) ~= 0 ifTrue: [
+				((buttons at: j + 1) bitAnd: (1 bitShift: (i - 1))) ~= 0 ifTrue: [
+					decrements := decrements + 1
+				]
+			]
+		].
+		count - decrements
+	]
+].
+iterate := nil.
+iterateCache := Dictionary new.
+
+iterate := [:counters :buttons :width |
+    | key |
+    key := { counters. buttons. width }.
+
+    iterateCache
+        at: key
+        ifAbsentPut: [
+            (counters allSatisfy: [:c | c = 0])
+                ifTrue: [ 0 ]
+                ifFalse: [
+                    | results newCounters targetMask minPresses |
+                    minPresses := Float infinity.
+                    targetMask := getTargetMask value: counters.
+                    results := findMatchingSubsets value: targetMask value: buttons.
+                    results do: [:mask |
+                        | presses |
+                        presses := mask bitCount.
+                        newCounters := reduceCounters value: counters value: buttons value: mask.
+                        (allCountersNonNegative value: newCounters)
+                            ifTrue: [
+                                newCounters := halveCounters value: newCounters.
+                                minPresses := minPresses min:
+                                    (presses + (2 * (iterate value: newCounters value: buttons value: width))).
+                            ].
+                    ].
+                    minPresses
+                ]
+        ]
+].
 total := 0.
 games do: [:game |
-	| targetMask buttons counters width result |
+	| buttons counters width result |
 	buttons := game at: 2.
 	width := game at: 3.
 	counters := game at: 4.
 	Transcript show: 'Counters: ' , counters  , (String with: Character lf).
-	counters := halveCounters value: counters.
-	targetMask := getTargetMask value: counters.
-	result := findMatchingSubsets value: targetMask value: buttons.
-	Transcript show: 'Counters: ' , counters  , (String with: Character lf).
-	Transcript show: 'Target: ' , (renderTarget value: targetMask value: width) , (String with: Character lf).
-	result do: [:mask |
-		| pressed str |
-		pressed := (0 to: buttons size - 1)
-			select: [:i | (mask bitAnd: (1 bitShift: i)) ~= 0]
-			thenCollect: [:i | printMask value: (buttons at: i + 1)].
-		str := '* Pressing `'.
-		pressed doWithIndex: [:p :i | str := str , p. i < pressed size ifTrue: [str := str , ', ']].
-		Transcript show: str , '`.' , (String with: Character lf)].
+	result := iterate value: counters value: buttons value: width.
+	Transcript show: 'Result: ', result, (String with: Character lf).
+	total := total + result.
 ].
+Transcript show: 'Total: ', total.
