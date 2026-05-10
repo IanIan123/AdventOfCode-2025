@@ -1,4 +1,4 @@
-| stream input lines games total findMatchingSubsets printMask renderTarget getTargetMask printButtons iterate reduceCounters halveCounters allCountersNonNegative iterateCache |
+| stream input lines games total findMatchingSubsets printMask renderTarget getTargetMask printButtons iterate reduceCounters iterateCache |
 Transcript clear.
 stream := FileStream readOnlyFileNamed: 'input.txt'.
 input := stream contentsOfEntireFile.
@@ -26,19 +26,7 @@ games := OrderedCollection new.
 	counters := ((counters findTokens: ',') collect: [:x | x asInteger]) asArray .
 	games add: (Array with: answerMask with: buttons asArray with: width with: counters).
 ].
-findMatchingSubsets := [:targetMask :buttons |
-	| numButtons matchingMasks |
-	numButtons := buttons size.
-	matchingMasks := OrderedCollection new.
-	0 to: (1 bitShift: numButtons) - 1 do: [:subset |
-		| state |
-		state := 0.
-		0 to: numButtons - 1 do: [:i |
-			(subset bitAnd: (1 bitShift: i)) ~= 0
-				ifTrue: [state := state bitXor: (buttons at: i + 1)]].
-		state = targetMask ifTrue: [matchingMasks add: subset]].
-	matchingMasks
-].
+
 printMask := [:m |
 	| indices str |
 	indices := (0 to: 31) select: [:b | (m bitAnd: (1 bitShift: b)) ~= 0].
@@ -52,19 +40,6 @@ renderTarget := [:m :width |
 	1 to: width do: [:i | str := str , ((m bitAnd: (1 bitShift: i - 1)) ~= 0 ifTrue: ['#'] ifFalse: ['.'])].
 	str , ']'
 ].
-getTargetMask := [:counters |
-	| targetMask |
-	targetMask := 0.
-	counters doWithIndex: [:count :j |
-		count odd ifTrue: [targetMask := targetMask bitOr: (1 << (j - 1))]].
-	targetMask.
-].
-halveCounters := [:counters |
-	counters collect: [:count | count / 2].
-].
-allCountersNonNegative := [:counters |
-	counters allSatisfy: [:counter | counter >= 0]
-].
 printButtons := [:mask :buttons |
     | pressed str |
     pressed := (0 to: buttons size - 1)
@@ -73,6 +48,27 @@ printButtons := [:mask :buttons |
     str := '* Pressing '.
     pressed doWithIndex: [:p :i | str := str , p. i < pressed size ifTrue: [str := str , ', ']].
     Transcript show: str , '.' , (String with: Character lf)
+].
+
+getTargetMask := [:counters |
+	| targetMask |
+	targetMask := 0.
+	counters doWithIndex: [:count :j |
+		count odd ifTrue: [targetMask := targetMask bitOr: (1 << (j - 1))]].
+	targetMask.
+].
+findMatchingSubsets := [:targetMask :buttons |
+	| numButtons matchingMasks |
+	numButtons := buttons size.
+	matchingMasks := OrderedCollection new.
+	0 to: (1 bitShift: numButtons) - 1 do: [:subset |
+		| state |
+		state := 0.
+		0 to: numButtons - 1 do: [:i |
+			(subset bitAnd: (1 bitShift: i)) ~= 0
+				ifTrue: [state := state bitXor: (buttons at: i + 1)]].
+		state = targetMask ifTrue: [matchingMasks add: subset]].
+	matchingMasks
 ].
 reduceCounters := [:counters :buttons :mask |
 	counters collectWithIndex: [:count :i |
@@ -88,13 +84,12 @@ reduceCounters := [:counters :buttons :mask |
 		count - decrements
 	]
 ].
-iterate := nil.
-iterateCache := Dictionary new.
 
+iterateCache := Dictionary new.
+iterate := nil.
 iterate := [:counters :buttons :width |
     | key |
     key := { counters. buttons. width }.
-
     iterateCache
         at: key
         ifAbsentPut: [
@@ -109,9 +104,9 @@ iterate := [:counters :buttons :width |
                         | presses |
                         presses := mask bitCount.
                         newCounters := reduceCounters value: counters value: buttons value: mask.
-                        (allCountersNonNegative value: newCounters)
+                        (newCounters allSatisfy: [:counter | counter >= 0])
                             ifTrue: [
-                                newCounters := halveCounters value: newCounters.
+                                newCounters := newCounters collect: [:count | count / 2].
                                 minPresses := minPresses min:
                                     (presses + (2 * (iterate value: newCounters value: buttons value: width))).
                             ].
